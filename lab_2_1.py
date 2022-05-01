@@ -11,7 +11,7 @@ data_init.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
 data_init['index'] = data_init['index'].astype(str)
 
 # Extracting number of rows and columns
-rows, cols = data_init.shape
+_, cols = data_init.shape
 
 # Set output option with all columns displayed
 pd.set_option('display.max_columns', cols)
@@ -26,6 +26,8 @@ print()
 # --Step 3
 # Create alternative data set
 data_main = data_init.copy()
+data_main.boxplot()
+plt.show()
 
 number_of_nulls = data_main.isnull().sum().sum()
 number_of_nans = data_main.isna().sum().sum()
@@ -55,7 +57,7 @@ print(data_main['score'].describe())
 # Winsorize all columns
 for col in data_main.columns:
     if col != 'index':
-        winsorize(data_main[col], limits=(0.05, 0.05), inplace=True)
+        winsorize(data_main[col], limits=(0.05, 0.08), inplace=True)
 data_main.hist()
 plt.show()
 
