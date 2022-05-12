@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import textblob
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction import _stop_words
 import re
 from textblob import TextBlob
 from sklearn.model_selection import train_test_split
@@ -19,7 +20,7 @@ data_raw = pd.read_csv('twitter-airline-sentiment.csv', encoding_errors='ignore'
 # Leaving only data if gender is defined
 data_raw = data_raw[data_raw['airline_sentiment'] != 'neutral']
 
-n_total = 500
+n_total = 5000
 rows = data_raw.shape[0]
 rd_ind_list = rd.randint(0, rows-1, n_total)
 data_init = data_raw[['airline_sentiment', 'text']].iloc[rd_ind_list]
@@ -47,15 +48,19 @@ corpus = preprocess(clean_txt(data_init.text))
 text_train, text_value, y_train, y_value = \
     train_test_split(corpus, data_init.airline_sentiment, test_size=0.3, random_state=100)
 
+my_stop_words = set(_stop_words.ENGLISH_STOP_WORDS)
+to_add_stopwords = ['flight', 'aa', 'wa', 'thi']
+for word in to_add_stopwords:
+    my_stop_words.add(word)
 
-vect = CountVectorizer(stop_words='english', min_df=3, ngram_range=(2, 2))
+vect = CountVectorizer(stop_words=my_stop_words, min_df=4, ngram_range=(1, 1))
 
 
 X_train = vect.fit_transform(text_train)
 X_val = vect.transform(text_value)
 
 
-lr = LogisticRegressionCV(max_iter=300)
+lr = LogisticRegressionCV(max_iter=500)
 lr.fit(X_train, y_train)
 
 print('C_', lr.C_)
@@ -69,7 +74,18 @@ words_class = lr.predict(_words_vect).tolist()
 
 summary = pd.DataFrame({'token': words, 'freq': word_freq, 'class': words_class})
 
-plt.stem(word_freq)
-plt.xticks(rotation=90, ticks=range(len(words)), labels=words)
-plt.show()
+
+def stem_plotter(class_='negative', number=15):
+    """Plots stem for particular class and stem number"""
+    class_slice = summary[summary['class'] == class_].sort_values(['freq'], ascending=False).iloc[:number]
+    df_adjusted = class_slice.sort_values(['freq'])
+    length = df_adjusted.shape[0]
+    plt.stem(df_adjusted['freq'], markerfmt='ro' if class_ == 'negative' else 'go')
+    plt.xlabel('Words')
+    plt.xticks(rotation=90, ticks=range(length), labels=df_adjusted['token'])
+    plt.title(f"Class: {class_.upper()}")
+    plt.show()
+
+stem_plotter()
+stem_plotter('positive')
 
