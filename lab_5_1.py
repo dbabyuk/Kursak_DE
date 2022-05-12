@@ -19,7 +19,7 @@ data_raw = pd.read_csv('twitter-airline-sentiment.csv', encoding_errors='ignore'
 # Leaving only data if gender is defined
 data_raw = data_raw[data_raw['airline_sentiment'] != 'neutral']
 
-n_total = 1000
+n_total = 500
 rows = data_raw.shape[0]
 rd_ind_list = rd.randint(0, rows-1, n_total)
 data_init = data_raw[['airline_sentiment', 'text']].iloc[rd_ind_list]
@@ -48,21 +48,28 @@ text_train, text_value, y_train, y_value = \
     train_test_split(corpus, data_init.airline_sentiment, test_size=0.3, random_state=100)
 
 
-vect = CountVectorizer(stop_words='english', min_df=3, ngram_range=(1, 1))
+vect = CountVectorizer(stop_words='english', min_df=3, ngram_range=(2, 2))
 
 
-X_train_df3 = vect.fit_transform(text_train)
-X_val_df3 = vect.transform(text_value)
+X_train = vect.fit_transform(text_train)
+X_val = vect.transform(text_value)
 
 
 lr = LogisticRegressionCV(max_iter=300)
-lr.fit(X_train_df3, y_train)
+lr.fit(X_train, y_train)
 
 print('C_', lr.C_)
-print('Score = ', lr.score(X_val_df3, y_value))
-
+print('Score = ', lr.score(X_val, y_value))
 print()
-X = vect.get_feature_names_out()
-print('X = ', X)
 
-vocab = vect.vocabulary_
+words = vect.get_feature_names_out()
+word_freq = X_train.sum(axis=0).tolist()[0]
+_words_vect = vect.transform(words)
+words_class = lr.predict(_words_vect).tolist()
+
+summary = pd.DataFrame({'token': words, 'freq': word_freq, 'class': words_class})
+
+plt.stem(word_freq)
+plt.xticks(rotation=90, ticks=range(len(words)), labels=words)
+plt.show()
+
