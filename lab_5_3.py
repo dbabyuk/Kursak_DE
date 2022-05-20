@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 # --- PART 1. Sentiment Analysis---------------------
 
 CANDIDATES = ['clinton', 'trump']
-# Interactive input debate number
-# debate_number = int(input('Enter number (1, 2, 3) of Clinton/Trump election2016 debate '))
 debate_number = 2
+# To run in interactive mode, uncomment the next line. Input debate number when prompted !!!
+# debate_number = int(input('Enter number (1, 2, 3) of Clinton/Trump election2016 debate '))
 end_str = '1st' if debate_number == 1 else '2nd' if debate_number == 2 else '3rd'
 
 
@@ -64,7 +64,8 @@ sentiment_results = sentiment_analysis(CANDIDATES)
 for name in CANDIDATES:
     print()
     print(f'The most positive phrase for {name.capitalize()}:')
-    row_selected = sentiment_results[sentiment_results['candidate'] == name].sort_values(by='polarity_score', ascending=False)
+    row_selected = sentiment_results[sentiment_results['candidate'] == name].sort_values(by='polarity_score',
+                                                                                         ascending=False)
     print(row_selected['sentence'].iloc[0])
     print('ITS POLARITY SCORE = ', row_selected['polarity_score'].iloc[0])
 
@@ -88,6 +89,7 @@ def sentiment_freq(sentiments_df, sentiment_type):
     merged_df = pd.concat(frames)
     return merged_df
 
+
 #
 polaritiy_results = sentiment_freq(sentiment_results, 'polarity')
 subjectivity_results = sentiment_freq(sentiment_results, 'subjectivity')
@@ -99,11 +101,10 @@ def bar_plotter(names: list, type_: str, data_):
     fig = plt.figure()
     axes = fig.add_subplot(111)
     x_cluster = {names[0]: 2, names[1]: 7}
-    _sentiment_info = {'polarity': {'negative': {'shift': 0, 'color': 'r'},
-                                    'neutral': {'shift': 1, 'color': 'b'},
-                                    'positive': {'shift': 2, 'color': 'g'}},
-                       'subjectivity': {'low': {'shift': 0, 'color': 'r'},
-                                        'high': {'shift': 1, 'color': 'g'}}
+    _sentiment_info = {'polarity': {'negative': {'shift': 0, 'color': 'r'}, 'neutral': {'shift': 1, 'color': 'b'},
+                                    'positive': {'shift': 2, 'color': 'g'}
+                                    },
+                       'subjectivity': {'low': {'shift': 0, 'color': 'r'}, 'high': {'shift': 1, 'color': 'g'}}
                        }
     sentiment_type = _sentiment_info[type_]
     ticks = []
@@ -154,8 +155,8 @@ def my_stop_words(words_to_add=None, words_to_remove=None):
     return my_stop_words
 
 
-MY_STOP_WORDS = ["'s", "'ve", "'re", "'m", "'ll", "'d", "ve", "ll", "ha", "wa", "maybe", "just",
-                 "donald", "ca", "got", "sure", "did"]
+MY_STOP_WORDS = ["'s", "'ve", "'re", "'m", "'ll", "'d", "ve", "ll", "ha", "wa", "maybe", "just", "donald", "ca", "got",
+                 "sure", "did"]
 
 
 def wc_df(bulk: str):
@@ -187,7 +188,6 @@ def noun_frequecies(data_: dict):
 
 nouns = noun_frequecies(data_cleaned)
 
-
 # Noun output
 for candidate in CANDIDATES:
     print()
@@ -205,24 +205,25 @@ def preprocess(bulk: str):
     return res
 
 
-def get_topics(data_: dict, number_of_topics=3, words_per_topic=10):
+def get_topics(data_: dict, number_of_topics=5, number_of_components=50, words_per_topic=10):
     """SVD analysis for topic modelling. Returns dict of number_of_topics vectors"""
     res = {}
     for candidate in CANDIDATES:
         text_data = preprocess(data_[candidate])
         vect = CountVectorizer(stop_words=my_stop_words(words_to_add=MY_STOP_WORDS), min_df=4)
         vector_data = vect.fit_transform(text_data).todense()
-        svd_modeling = TruncatedSVD(n_components=number_of_topics)
-        svd_modeling.fit(vector_data)
+        svd_modeling = TruncatedSVD(n_components=number_of_components)
+        svd_modeling.fit(np.asarray(vector_data))
         components = svd_modeling.components_
+        exp_variance = svd_modeling.explained_variance_ratio_
         vocab = vect.get_feature_names_out()
         topic_word_list = []
-        for ind in range(components.shape[0]):
+        for ind in range(number_of_topics):
             terms_comp = zip(vocab, components[ind])
             sorted_terms = sorted(terms_comp, key=lambda x: x[1], reverse=True)[:words_per_topic]
             topic = dict(sorted_terms)
             topic_word_list.append(topic)
-        res[candidate] = topic_word_list
+        res[candidate] = [topic_word_list, exp_variance]
     return res
 
 
@@ -230,19 +231,37 @@ topics = get_topics(data_cleaned)
 
 
 def topics_output(data_):
-    """Prints and plots (stem) results for topics"""
+    """Prints and plots (stem for 2 pics only) results for topics"""
     for cand in CANDIDATES:
         ind = 1
-        cand_topics = data_[cand]
+        cand_topics = data_[cand][0]
         print()
         print(f'Topics of {cand.capitalize()} speech:')
         for topic in cand_topics:
             print(f'Topic {ind}:', ' '.join(topic.keys()))
-            plt.stem(topic.values())
-            plt.xticks(rotation=45, ticks=range(len(topic)), labels=topic.keys())
-            plt.title(f'Topic {ind} of {cand.capitalize()} speech')
-            plt.show()
+            if ind <= 2:  # this number implies for only 2 plots of this kind. It can be increased by demand
+                plt.stem(topic.values())
+                plt.xticks(rotation=45, ticks=range(len(topic)), labels=topic.keys())
+                plt.title(f'Topic {ind} of {cand.capitalize()} speech')
+                plt.show()
             ind += 1
+
 
 # Visualization of topic modelling
 topics_output(topics)
+
+
+def explained_variance_output(data_):
+    """Plot of explained variance ratio"""
+    for cand in CANDIDATES:
+        exp_var = data_[cand][1]
+        plt.plot(exp_var)
+        plt.ylabel('Explained variance ratio')
+        plt.title(f'{cand.capitalize()}')
+        plt.show()
+
+
+# Plots of explained variance.
+# Based on the shape of the curve the optimal topic number is chosen
+# For each input data (debate number, candidate name) this value is different and should be estimated visually
+explained_variance_output(topics)
